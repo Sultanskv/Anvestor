@@ -1,0 +1,243 @@
+user_name = 'M3547653'
+password = ''
+api_key = ''
+feed_token = None
+token_map = None
+
+
+
+from smartapi.smartConnect import SmartConnect
+import pandas as pd
+import requests
+import login as l
+
+# Initialize SmartConnect object with API key
+obj = SmartConnect(api_key=l.api_key)
+
+# Generate session
+data = obj.generateSession(l.user_name, l.password)
+refreshToken = data['data']['refreshToken']
+
+# Fetch the feed token
+feedToken = obj.getfeedToken()
+l.feed_token = feedToken
+
+# Fetch user profile
+userProfile = obj.getProfile(refreshToken)
+print(userProfile)
+
+# Historic API
+def OHLCHistory(symbol, token, interval, fdate, tdate):
+    try:
+        historicParam = {
+            "exchange": "NSE",
+            "tradingsymbol": symbol,
+            "symboltoken": token,
+            "interval": interval,
+            "fromdate": fdate,
+            "todate": tdate
+        }
+        history = obj.getCandleData(historicParam)['data']
+        history = pd.DataFrame(history)
+
+        history = history.rename(
+            columns={0: "Datetime", 1: "open", 2: "high", 3: "low", 4: "close", 5: "Volume"})
+        history['Datetime'] = pd.to_datetime(history['Datetime'])
+        history = history.set_index('Datetime')
+        return history
+    except Exception as e:
+        print("Historic Api failed: {}".format(e))
+
+print("Daily Data:")
+ydata = OHLCHistory("SBIN-EQ", "3045", "ONE_DAY", "2020-02-08 00:00", "2021-02-08 15:30")
+f = pd.DataFrame(ydata)
+f.to_csv(r'NIFTY_oneday.csv', mode='a', index=True, header=False)
+
+print("5 minute data:")
+te5data = OHLCHistory("SBIN-EQ", "3045", "FIVE_MINUTE", "2021-01-06 09:15", "2021-01-06 15:30")
+f = pd.DataFrame(te5data)
+f.to_csv(r'NIFTY_5minute.csv', mode='a', index=True, header=False)
+
+print("End Program")
+
+
+
+=============================================================================
+ path('place_order/', views.place_order, name='place_order'),
+
+
+
+ from .models import Order
+
+class PlaceOrderForm(forms.ModelForm):
+    class Meta:
+        model = Order
+        fields = [
+            'variety', 'tradingsymbol', 'symboltoken', 'transactiontype',
+            'exchange', 'ordertype', 'producttype', 'duration', 'price',
+            'quantity', 'squareoff','status', 'stoploss'
+        ] 
+
+
+# =============================== Angel one model ========================================  
+from django.db import models
+
+class Order(models.Model):
+    VARIETY_CHOICES = [
+        ('NORMAL', 'Normal'),
+        ('STOPLOSS', 'Stoploss'),
+        ('AMO', 'AMO'),
+        ('ROBO', 'Robo'),
+    ]
+    
+    TRANSACTION_TYPE_CHOICES = [
+        ('BUY', 'Buy'),
+        ('SELL', 'Sell'),
+    ]
+    
+    ORDER_TYPE_CHOICES = [
+        ('MARKET', 'Market'),
+        ('LIMIT', 'Limit'),
+        ('STOPLOSS_LIMIT', 'Stoploss Limit'),
+        ('STOPLOSS_MARKET', 'Stoploss Market'),
+    ]
+    
+    PRODUCT_TYPE_CHOICES = [
+        ('DELIVERY', 'Delivery'),
+        ('CARRYFORWARD', 'Carryforward'),
+        ('MARGIN', 'Margin'),
+        ('INTRADAY', 'Intraday'),
+        ('BO', 'BO'),
+    ]
+    
+    DURATION_CHOICES = [
+        ('DAY', 'Day'),
+        ('IOC', 'IOC'),
+    ]
+    
+    EXCHANGE_CHOICES = [
+        ('BSE', 'BSE'),
+        ('NSE', 'NSE'),
+        ('NFO', 'NFO'),
+        ('MCX', 'MCX'),
+        ('BFO', 'BFO'),
+        ('CDS', 'CDS'),
+    ]
+    
+    order_id = models.CharField(max_length=20, unique=True, null=True, blank=True)
+    variety = models.CharField(max_length=10, choices=VARIETY_CHOICES)
+    tradingsymbol = models.CharField(max_length=20)
+    symboltoken = models.CharField(max_length=10)
+    transactiontype = models.CharField(max_length=4, choices=TRANSACTION_TYPE_CHOICES)
+    exchange = models.CharField(max_length=5, choices=EXCHANGE_CHOICES)
+    ordertype = models.CharField(max_length=15, choices=ORDER_TYPE_CHOICES)
+    producttype = models.CharField(max_length=12, choices=PRODUCT_TYPE_CHOICES)
+    duration = models.CharField(max_length=5, choices=DURATION_CHOICES)
+    price = models.DecimalField(max_digits=10, decimal_places=2)
+    quantity = models.IntegerField()
+    squareoff = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    stoploss = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    status = models.CharField(max_length=20, default='pending')
+    error_message = models.TextField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.order_id} - {self.tradingsymbol} - {self.transactiontype}"
+
+
+
+
+views.py
+----------------------------
+import json
+import requests
+from django.shortcuts import render
+from django.http import JsonResponse
+from .forms import PlaceOrderForm
+from .models import Order
+
+def get_new_token():
+    url = 'https://apiconnect.angelbroking.com/rest/auth/angelbroking/user/v1/loginByPassword'
+    payload = {
+        'clientcode': 'K436935',
+        'password': '3547'
+    }
+    headers = {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+    }
+    
+    response = requests.post(url, headers=headers, data=json.dumps(payload))
+    
+    if response.status_code == 200:
+        response_data = response.json()
+        if response_data['status']:
+            return response_data['data']['jwtToken']
+        else:
+            raise Exception("Failed to get token: " + response_data.get('message', 'Unknown error'))
+    else:
+        raise Exception("Failed to connect to API: HTTP status code " + str(response.status_code))
+
+def place_order(request):
+    if request.method == 'POST':
+        form = PlaceOrderForm(request.POST)
+        if form.is_valid():
+            order = form.save(commit=False)
+            try:
+                token = get_new_token()
+            except Exception as e:
+                return JsonResponse({'status': False, 'message': f"Error getting token: {str(e)}"})
+
+            data = {
+                "variety": order.variety,
+                "tradingsymbol": order.tradingsymbol,
+                "symboltoken": order.symboltoken,
+                "transactiontype": order.transactiontype,
+                "exchange": order.exchange,
+                "ordertype": order.ordertype,
+                "producttype": order.producttype,
+                "duration": order.duration,
+                "price": str(order.price),
+                "quantity": str(order.quantity),
+                "squareoff": str(order.squareoff) if order.squareoff else "0",
+                "stoploss": str(order.stoploss) if order.stoploss else "0"
+            }
+            headers = {
+                'Authorization': f'Bearer {token}',
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-UserType': 'USER',
+                'X-SourceID': 'WEB',
+                'X-ClientLocalIP': 'CLIENT_LOCAL_IP',
+                'X-ClientPublicIP': 'CLIENT_PUBLIC_IP',
+                'X-MACAddress': 'MAC_ADDRESS',
+                'X-PrivateKey': 'z2nnckx5'
+            }
+            response = requests.post(
+                'https://apiconnect.angelbroking.com/rest/secure/angelbroking/order/v1/placeOrder',
+                headers=headers,
+                data=json.dumps(data)
+            )
+            response_data = response.json()
+
+            if 'status' in response_data and response_data['status']:
+                order.order_id = response_data['data']['orderid']
+                order.status = 'success'
+            else:
+                order.status = 'failed'
+                order.error_message = response_data.get('message', 'Unknown error')
+            order.save()
+            return JsonResponse(response_data)
+        else:
+            return JsonResponse({'status': False, 'message': 'Invalid form data'})
+    else:
+        form = PlaceOrderForm()
+    return render(request, 'place_order.html', {'form': form})
+
+
+#=================================  ============================================    
+
+
+
+
