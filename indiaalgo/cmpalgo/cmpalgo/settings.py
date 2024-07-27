@@ -32,7 +32,7 @@ MEDIA_URL = '/media/'
 SECRET_KEY = 'django-insecure-8_2=#*u&6dar802!87e&ocgb03k5%1na=tkes_0g+#(r5e6!lp'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
 ALLOWED_HOSTS = ['ai.anvestors.com', 'www.ai.anvestors.com','127.0.0.1','127.0.0.1:8000','192.168.1.90']
 
@@ -143,7 +143,8 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'UTC'
+# TIME_ZONE = 'UTC'
+TIME_ZONE = 'Asia/Kolkata'
 
 USE_I18N = True
 
@@ -230,8 +231,8 @@ EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
-EMAIL_HOST_USER = 'coolairpoint.com@gmail.com'  # Your email address
-EMAIL_HOST_PASSWORD = 'cavq adzv eisp anei'      # Your email password or app-specific password
+EMAIL_HOST_USER = 'ittechnology1may2023@gmail.com'  # Your email address
+EMAIL_HOST_PASSWORD = 'uyfg cflv fhhz nmhq '      # Your email password or app-specific password
 
 
 
